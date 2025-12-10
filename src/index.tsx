@@ -87,12 +87,17 @@ export const SnowFX: React.FC<SnowFXProps> = ({
 }) => {
   const { width, height } = Dimensions.get('window');
   const snowflakesRef = useRef<Snowflake[]>([]);
-  const animationsRef = useRef<any[]>([]);
+  const animationsRef = useRef<
+    Array<{ stop: () => void; isActive: { current: boolean } }>
+  >([]);
 
-  // Initialize snowflakes
+  // Initialize snowflakes and start animations in one effect
   useEffect(() => {
     // Stop previous animations
-    animationsRef.current.forEach((anim) => anim.stop());
+    animationsRef.current.forEach((anim) => {
+      anim.isActive.current = false;
+      anim.stop();
+    });
     animationsRef.current = [];
 
     // Initialize snowflakes
@@ -114,65 +119,101 @@ export const SnowFX: React.FC<SnowFXProps> = ({
         initialX,
       };
     });
-  }, [snowflakesCount, minSize, maxSize, minSpeed, maxSpeed, width, height]);
 
-  // Start animations
-  useEffect(() => {
-    // Stop previous animations
-    animationsRef.current.forEach((anim) => anim.stop());
-    animationsRef.current = [];
-
+    // Start animations immediately
     animationsRef.current = snowflakesRef.current.map((snowflake) => {
-      const fall = Animated.sequence([
-        Animated.timing(snowflake.y, {
+      const isActive = { current: true };
+      let currentAnimation: ReturnType<typeof Animated.parallel> | null = null;
+
+      // Create reusable animations
+      const createDrift = (cycleSpeed: number, cycleDrift: number) =>
+        Animated.sequence([
+          Animated.timing(snowflake.x, {
+            toValue: snowflake.initialX + cycleDrift,
+            duration: cycleSpeed / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(snowflake.x, {
+            toValue: snowflake.initialX,
+            duration: cycleSpeed / 2,
+            useNativeDriver: true,
+          }),
+        ]);
+
+      const createRotate = (cycleSpeed: number) =>
+        Animated.sequence([
+          Animated.timing(snowflake.rotation, {
+            toValue: 360,
+            duration: cycleSpeed,
+            useNativeDriver: true,
+          }),
+          Animated.timing(snowflake.rotation, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]);
+
+      // Recursive animation that resets synchronously
+      const animateCycle = (withInitialDelay = false) => {
+        if (!isActive.current) return;
+
+        const cycleSpeed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+        const cycleDrift = (Math.random() - 0.5) * 100;
+
+        // Reset position BEFORE creating animation for seamless transitions
+        snowflake.y.setValue(-(Math.random() * 100 + 50));
+
+        const fallAnim = Animated.timing(snowflake.y, {
           toValue: height + 50,
-          duration: snowflake.speed,
+          duration: cycleSpeed,
           useNativeDriver: true,
-        }),
-        Animated.timing(snowflake.y, {
-          toValue: -(Math.random() * 100 + 50),
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ]);
+        });
 
-      const drift = Animated.sequence([
-        Animated.timing(snowflake.x, {
-          toValue: snowflake.initialX + snowflake.drift,
-          duration: snowflake.speed / 2,
-          useNativeDriver: true,
-        }),
-        Animated.timing(snowflake.x, {
-          toValue: snowflake.initialX,
-          duration: snowflake.speed / 2,
-          useNativeDriver: true,
-        }),
-      ]);
+        const parallelAnim = Animated.parallel([
+          fallAnim,
+          createDrift(cycleSpeed, cycleDrift),
+          createRotate(cycleSpeed),
+        ]);
 
-      const rotate = Animated.sequence([
-        Animated.timing(snowflake.rotation, {
-          toValue: 360,
-          duration: snowflake.speed,
-          useNativeDriver: true,
-        }),
-        Animated.timing(snowflake.rotation, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ]);
+        const startAnim = withInitialDelay
+          ? Animated.sequence([
+              Animated.delay(Math.random() * cycleSpeed),
+              parallelAnim,
+            ])
+          : parallelAnim;
 
-      // 🔥 ALL animations wrapped into one loop
-      const loopedAnimation = Animated.loop(
-        Animated.parallel([fall, drift, rotate])
-      );
-      loopedAnimation.start();
-      return loopedAnimation;
+        currentAnimation = startAnim;
+
+        // Start animation and immediately queue next cycle when done
+        startAnim.start(({ finished }) => {
+          if (finished && isActive.current) {
+            // Call next cycle synchronously - reset happens at start of function
+            animateCycle(false);
+          }
+        });
+      };
+
+      // Start the animation cycle
+      animateCycle(true);
+
+      // Return stop function for cleanup
+      return {
+        stop: () => {
+          if (currentAnimation) {
+            currentAnimation.stop();
+          }
+        },
+        isActive,
+      };
     });
 
     // Cleanup function to stop animations when component unmounts
     return () => {
-      animationsRef.current.forEach((anim) => anim.stop());
+      animationsRef.current.forEach((anim) => {
+        anim.isActive.current = false;
+        anim.stop();
+      });
     };
   }, [snowflakesCount, minSize, maxSize, minSpeed, maxSpeed, width, height]);
 
