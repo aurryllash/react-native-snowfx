@@ -13,6 +13,7 @@ export default function App() {
   const [isSnowing, setIsSnowing] = useState(true);
   const [snowflakesCount, setSnowflakesCount] = useState(50);
   const [snowColor, setSnowColor] = useState('#FFFFFF');
+  const [loop, setLoop] = useState(true);
 
   return (
     <View style={styles.container}>
@@ -40,6 +41,11 @@ export default function App() {
           <View style={styles.control}>
             <Text style={styles.label}>Enable Snow</Text>
             <Switch value={isSnowing} onValueChange={setIsSnowing} />
+          </View>
+
+          <View style={styles.control}>
+            <Text style={styles.label}>Loop Animation</Text>
+            <Switch value={loop} onValueChange={setLoop} />
           </View>
 
           <View style={styles.control}>

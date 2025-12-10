@@ -101,6 +101,7 @@ export default function App() {
 | `snowflakeCharacter` | `string` | `'❄'` | Custom snowflake character or emoji |
 | `style` | `ViewStyle` | `undefined` | Custom container style |
 | `zIndex` | `number` | `1000` | Z-index of the snow layer |
+| `loop` | `boolean` | `true` | Whether the snowfall animation should loop infinitely |
 
 ## Examples
 
@@ -126,6 +127,11 @@ export default function App() {
 ### Sparkles Instead of Snow
 ```tsx
 <SnowFX snowflakeCharacter="✨" />
+```
+
+### One-Time Snowfall (No Loop)
+```tsx
+<SnowFX loop={false} />
 ```
 
 ### Custom Stars

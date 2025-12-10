@@ -89,76 +89,90 @@ export const SnowFX: React.FC<SnowFXProps> = ({
   const snowflakesRef = useRef<Snowflake[]>([]);
   const animationsRef = useRef<any[]>([]);
 
+  // Initialize snowflakes
   useEffect(() => {
+    // Stop previous animations
+    animationsRef.current.forEach((anim) => anim.stop());
+    animationsRef.current = [];
+
     // Initialize snowflakes
-    snowflakesRef.current = Array.from(
-      { length: snowflakesCount },
-      (_, index) => {
-        const initialX = Math.random() * width;
-        return {
-          id: index,
-          x: new Animated.Value(initialX),
-          y: new Animated.Value(-(Math.random() * height)),
-          opacity: new Animated.Value(Math.random() * 0.5 + 0.3),
-          rotation: new Animated.Value(0),
-          size: Math.random() * (maxSize - minSize) + minSize,
-          speed: Math.random() * (maxSpeed - minSpeed) + minSpeed,
-          drift: (Math.random() - 0.5) * 50,
-          initialX,
-        };
-      }
-    );
+    snowflakesRef.current = Array.from({ length: snowflakesCount }, (_, i) => {
+      const size = Math.random() * (maxSize - minSize) + minSize;
+      const speed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+      const drift = (Math.random() - 0.5) * 100;
+      const initialX = Math.random() * width;
 
-    // Create animations for each snowflake
+      return {
+        id: i,
+        x: new Animated.Value(initialX),
+        y: new Animated.Value(-(Math.random() * 100 + 50)),
+        opacity: new Animated.Value(Math.random() * 0.5 + 0.5),
+        rotation: new Animated.Value(0),
+        size,
+        speed,
+        drift,
+        initialX,
+      };
+    });
+  }, [snowflakesCount, minSize, maxSize, minSpeed, maxSpeed, width, height]);
+
+  // Start animations
+  useEffect(() => {
+    // Stop previous animations
+    animationsRef.current.forEach((anim) => anim.stop());
+    animationsRef.current = [];
+
     animationsRef.current = snowflakesRef.current.map((snowflake) => {
-      const fallAnimation = Animated.loop(
-        Animated.parallel([
-          // Falling animation
-          Animated.sequence([
-            Animated.timing(snowflake.y, {
-              toValue: height + 50,
-              duration: snowflake.speed,
-              useNativeDriver: true,
-            }),
-            Animated.timing(snowflake.y, {
-              toValue: -(Math.random() * 100 + 50),
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-          // Horizontal drift
-          Animated.sequence([
-            Animated.timing(snowflake.x, {
-              toValue: snowflake.initialX + snowflake.drift,
-              duration: snowflake.speed / 2,
-              useNativeDriver: true,
-            }),
-            Animated.timing(snowflake.x, {
-              toValue: snowflake.initialX,
-              duration: snowflake.speed / 2,
-              useNativeDriver: true,
-            }),
-          ]),
-          // Rotation animation
-          Animated.loop(
-            Animated.timing(snowflake.rotation, {
-              toValue: 360,
-              duration: snowflake.speed / 2,
-              useNativeDriver: true,
-            })
-          ),
-        ])
-      );
+      const fall = Animated.sequence([
+        Animated.timing(snowflake.y, {
+          toValue: height + 50,
+          duration: snowflake.speed,
+          useNativeDriver: true,
+        }),
+        Animated.timing(snowflake.y, {
+          toValue: -(Math.random() * 100 + 50),
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]);
 
-      return fallAnimation;
+      const drift = Animated.sequence([
+        Animated.timing(snowflake.x, {
+          toValue: snowflake.initialX + snowflake.drift,
+          duration: snowflake.speed / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(snowflake.x, {
+          toValue: snowflake.initialX,
+          duration: snowflake.speed / 2,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      const rotate = Animated.sequence([
+        Animated.timing(snowflake.rotation, {
+          toValue: 360,
+          duration: snowflake.speed,
+          useNativeDriver: true,
+        }),
+        Animated.timing(snowflake.rotation, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      // 🔥 ALL animations wrapped into one loop
+      const loopedAnimation = Animated.loop(
+        Animated.parallel([fall, drift, rotate])
+      );
+      loopedAnimation.start();
+      return loopedAnimation;
     });
 
-    // Start all animations
-    animationsRef.current.forEach((animation) => animation.start());
-
-    // Cleanup
+    // Cleanup function to stop animations when component unmounts
     return () => {
-      animationsRef.current.forEach((animation) => animation.stop());
+      animationsRef.current.forEach((anim) => anim.stop());
     };
   }, [snowflakesCount, minSize, maxSize, minSpeed, maxSpeed, width, height]);
 
